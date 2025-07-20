@@ -4,12 +4,21 @@ const { mongoDb } = require('./db');
 const { hashPassword, comparePasswords } = require('./utils/password');
 const { signToken, verifyToken } = require('./utils/jwt');
 const authMiddleware = require('./middleware/auth');
+const { validateProfileData } = require('./utils/validation');
 
 const router = express.Router();
 
 // User Model
 const userSchema = require('./models/User');
 const User = mongoDb.model('User', userSchema);
+
+// Profile Model
+const profileSchema = require('./models/Profile');
+const Profile = mongoDb.model('Profile', profileSchema);
+
+// Photo Model
+const photoSchema = require('./models/Photo');
+const Photo = mongoDb.model('Photo', photoSchema);
 
 // GET /api/hello
 router.get('/hello', (req, res) => {
@@ -51,6 +60,12 @@ router.post('/register', async (req, res) => {
     });
 
     await newUser.save();
+
+    // Create a profile for the new user
+    const newProfile = new Profile({
+      userId: newUser._id
+    });
+    await newProfile.save();
 
     const token = signToken({ id: newUser._id, email, username });
     res.status(201).json({ token, user: { id: newUser._id, email, username } });
@@ -162,10 +177,63 @@ router.get('/profile', authMiddleware, async (req, res) => {
     if (!user) {
       return res.status(404).json({ error: 'User not found' });
     }
-    res.json({ user });
+    const profile = await Profile.findOne({ userId: req.user.id });
+    if (!profile) {
+      return res.status(404).json({ error: 'Profile not found' });
+    }
+    res.json({ user, profile });
   } catch (error) {
     console.error('Profile fetch error:', error);
     res.status(500).json({ error: 'Server error while fetching profile' });
+  }
+});
+
+// PUT /api/profile (protected route for updating profile)
+router.put('/profile', authMiddleware, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const profileData = req.body;
+
+    // Validate the incoming data
+    const validation = validateProfileData(profileData);
+    if (!validation.isValid) {
+      return res.status(400).json({ errors: validation.errors });
+    }
+
+    // Find the profile associated with the user
+    let profile = await Profile.findOne({ userId });
+    if (!profile) {
+      // If profile doesn't exist, create one
+      profile = new Profile({ userId });
+    }
+
+    // Update profile fields if provided
+    if (profileData.firstName) {
+      profile.firstName = profileData.firstName;
+    }
+    if (profileData.lastName) {
+      profile.lastName = profileData.lastName;
+    }
+    if (profileData.bio) {
+      profile.bio = profileData.bio;
+    }
+    if (profileData.avatarUrl) {
+      profile.avatarUrl = profileData.avatarUrl;
+    }
+    if (profileData.dateOfBirth) {
+      profile.dateOfBirth = new Date(profileData.dateOfBirth);
+    }
+    if (profileData.location) {
+      profile.location = profileData.location;
+    }
+
+    profile.updatedAt = Date.now();
+    await profile.save();
+
+    res.json({ message: 'Profile updated successfully', profile });
+  } catch (error) {
+    console.error('Profile update error:', error);
+    res.status(500).json({ error: 'Server error while updating profile' });
   }
 });
 
