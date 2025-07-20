@@ -1,0 +1,20 @@
+.profile-info {
+  margin-bottom: 20px;
+}
+
+.profile-info p {
+  margin: 10px 0;
+  font-size: 16px;
+}
+
+.profile-actions {
+  display: flex;
+  justify-content: center;
+  gap: 10px;
+}
+
+.loading {
+  font-size: 18px;
+  text-align: center;
+  padding: 20px;
+}
