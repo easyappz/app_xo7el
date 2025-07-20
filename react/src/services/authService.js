@@ -63,3 +63,17 @@ export const getProfile = async () => {
     throw error.response?.data || { error: 'Ошибка сервера' };
   }
 };
+
+// Обновление профиля пользователя
+export const updateProfile = async (profileData) => {
+  try {
+    const response = await instance.put('/api/profile', profileData, {
+      headers: {
+        Authorization: `Bearer ${localStorage.getItem('token')}`,
+      },
+    });
+    return response.data;
+  } catch (error) {
+    throw error.response?.data || { error: 'Ошибка сервера' };
+  }
+};
